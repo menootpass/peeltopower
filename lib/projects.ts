@@ -561,6 +561,32 @@ export async function fetchProjectById(id: string | number): Promise<Project | n
   }
 }
 
+// Fetch single project by slug
+export async function fetchProjectBySlug(slug: string): Promise<Project | null> {
+  try {
+    const response = await fetch(`/api/projects?slug=${encodeURIComponent(slug)}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch project by slug:", response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      return transformProject(data.data, parseInt(data.data.id));
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching project by slug:", error);
+    return null;
+  }
+}
+
 export const PROJECTS: Project[] = [
   {
     id: 1,

@@ -440,7 +440,7 @@ export default function AdminPage() {
                 return (
               <Link
                 key={project.id}
-                href={`/portfolio/${project.id}`}
+                href={`/portfolio/${project.slug || project.id}`}
                 className="flex items-start gap-6 pb-6 border-b border-[#040404]/10 last:border-b-0 cursor-pointer hover:bg-[#F3F3F3]/50 transition-colors rounded-lg p-4 -m-4"
               >
                 {/* Left Side - Author, Title, Subtitle, Date */}

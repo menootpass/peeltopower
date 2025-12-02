@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { use } from "react";
+import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { MoreArticles } from "@/components/MoreArticles";
 import { Footer } from "@/components/Footer";
-import { fetchProjectById, type Project } from "@/lib/projects";
+import { fetchProjectBySlug, type Project } from "@/lib/projects";
 
 // Helper function to ensure no HTML tags are visible
 function cleanText(text: string): string {
@@ -60,17 +61,38 @@ function cleanText(text: string): string {
 export default function PortfolioDetailPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-  const { id } = use(params);
+  const { slug } = use(params);
+  const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is admin
+  useEffect(() => {
+    async function checkAdmin() {
+      try {
+        const response = await fetch("/api/admin/users/profile", {
+          method: "GET",
+          cache: "no-store",
+        });
+        if (response.ok) {
+          setIsAdmin(true);
+        }
+      } catch (error) {
+        // User is not admin, that's fine
+        setIsAdmin(false);
+      }
+    }
+    checkAdmin();
+  }, []);
 
   useEffect(() => {
     async function loadProject() {
       setIsLoading(true);
       try {
-        const fetchedProject = await fetchProjectById(id);
+        const fetchedProject = await fetchProjectBySlug(slug);
         setProject(fetchedProject);
       } catch (error) {
         console.error("Error loading project:", error);
@@ -79,7 +101,7 @@ export default function PortfolioDetailPage({
       }
     }
     loadProject();
-  }, [id]);
+  }, [slug]);
 
   if (isLoading) {
     return (
@@ -100,10 +122,10 @@ export default function PortfolioDetailPage({
         <main className="mx-auto flex w-full max-w-6xl flex-col items-center justify-center gap-6 px-6 py-24 sm:px-10">
           <h1 className="text-3xl font-semibold text-[#040404]">Project Not Found</h1>
           <Link
-            href="/#projects"
+            href={isAdmin ? "/admin" : "/#projects"}
             className="inline-flex items-center gap-2 rounded-full bg-[#040404] px-6 py-3 text-base font-semibold text-white transition-transform hover:scale-[1.02]"
           >
-            Back to Projects
+            {isAdmin ? "Back to Admin Panel" : "Back to Projects"}
           </Link>
         </main>
         <Footer />
@@ -116,7 +138,7 @@ export default function PortfolioDetailPage({
       <Navbar />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-24 pt-6 sm:px-10 sm:pt-12">
         <Link
-          href="/#projects"
+          href={isAdmin ? "/admin" : "/#projects"}
           className="inline-flex w-fit items-center gap-2 text-sm font-medium text-[#040404]/70 transition-colors hover:text-[#040404]"
         >
           <svg
@@ -134,7 +156,7 @@ export default function PortfolioDetailPage({
               strokeLinejoin="round"
             />
           </svg>
-          Back to Projects
+          {isAdmin ? "Back to Admin Panel" : "Back to Projects"}
         </Link>
 
         <article className="flex flex-col gap-8">
@@ -326,5 +348,4 @@ export default function PortfolioDetailPage({
     </div>
   );
 }
-
 

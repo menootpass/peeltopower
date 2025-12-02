@@ -12,16 +12,39 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const slug = searchParams.get("slug");
 
     try {
+      let fetchUrl: string;
+      if (slug) {
+        // Query by slug - use POST method to send slug in body
+        fetchUrl = apiUrl;
+      } else if (id) {
+        fetchUrl = `${apiUrl}?action=getProject&id=${id}`;
+      } else {
+        fetchUrl = `${apiUrl}?action=getAllProjects`;
+      }
+
       const response = await fetch(
-        id
-          ? `${apiUrl}?action=getProject&id=${id}`
-          : `${apiUrl}?action=getAllProjects`,
-        {
-          method: "GET",
-          redirect: "follow",
-        }
+        slug
+          ? fetchUrl
+          : fetchUrl,
+        slug
+          ? {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                action: "getProject",
+                slug: slug,
+              }),
+              redirect: "follow",
+            }
+          : {
+              method: "GET",
+              redirect: "follow",
+            }
       );
 
       const responseText = await response.text();

@@ -248,7 +248,7 @@ export default function Home() {
               projects.map((project, index) => (
               <Link
                 key={project.id}
-                href={`/portfolio/${project.id}`}
+                href={`/portfolio/${project.slug || project.id}`}
                 className={`block flex flex-col gap-6 border-b border-[#040404]/10 pb-10 transition-opacity hover:opacity-80 sm:flex-row sm:items-center sm:gap-10 ${
                   index === projects.length - 1 ? "border-b-0 pb-0" : ""
                 }`}
