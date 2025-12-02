@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export async function GET(request: NextRequest) {
+  try {
+    const apiUrl = process.env.DATABASE_API_URL;
+    if (!apiUrl) {
+      return NextResponse.json(
+        { error: "DATABASE_API_URL tidak dikonfigurasi" },
+        { status: 500 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    try {
+      const response = await fetch(
+        id
+          ? `${apiUrl}?action=getProject&id=${id}`
+          : `${apiUrl}?action=getAllProjects`,
+        {
+          method: "GET",
+          redirect: "follow",
+        }
+      );
+
+      const responseText = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse Apps Script response:", responseText);
+        return NextResponse.json(
+          { error: "Invalid response from server" },
+          { status: 500 }
+        );
+      }
+
+      if (response.ok) {
+        return NextResponse.json(data, { status: 200 });
+      } else {
+        return NextResponse.json(
+          { error: data.error || "Gagal mengambil data project" },
+          { status: response.status || 500 }
+        );
+      }
+    } catch (error) {
+      console.error("Error fetching projects from Apps Script:", error);
+      return NextResponse.json(
+        { error: "Terjadi kesalahan saat mengambil data project" },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error("Error in projects GET route:", error);
+    return NextResponse.json(
+      { error: "Terjadi kesalahan saat mengambil data project" },
+      { status: 500 }
+    );
+  }
+}
+
