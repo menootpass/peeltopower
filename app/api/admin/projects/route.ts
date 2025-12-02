@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { deleteMultipleFromR2 } from "@/lib/r2";
+import { deleteMultipleFromR2, deleteFromR2 } from "@/lib/r2";
 
 // Helper function to clean HTML by removing data-* attributes
 function cleanHtmlAttributes(html: string): string {
@@ -241,8 +241,58 @@ export async function PUT(request: NextRequest) {
     }
 
     try {
-      // Clean HTML content to remove unwanted attributes like data-path-to-node
+      // Step 1: Get existing project data to compare old images with new ones
+      let oldImageUrls: string[] = [];
+      try {
+        const getRequestBody = {
+          action: "getProject",
+          id: id.toString(),
+        };
+
+        const getResponse = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(getRequestBody),
+          redirect: "follow",
+        });
+
+        if (getResponse.ok) {
+          const getResponseText = await getResponse.text();
+          try {
+            const getData = JSON.parse(getResponseText);
+            if (getData.success && getData.data && getData.data.gambar) {
+              // Parse old images
+              if (Array.isArray(getData.data.gambar)) {
+                oldImageUrls = getData.data.gambar.filter((url: string) => url && url.trim());
+              } else if (typeof getData.data.gambar === 'string') {
+                try {
+                  const parsed = JSON.parse(getData.data.gambar);
+                  oldImageUrls = Array.isArray(parsed) 
+                    ? parsed.filter((url: string) => url && url.trim())
+                    : [];
+                } catch (e) {
+                  oldImageUrls = getData.data.gambar.trim() ? [getData.data.gambar.trim()] : [];
+                }
+              }
+              console.log("Found old images:", oldImageUrls);
+            }
+          } catch (e) {
+            console.log("Failed to parse existing project data (continuing anyway)");
+          }
+        }
+      } catch (error) {
+        console.log("Error fetching existing project data (continuing anyway):", error);
+      }
+
+      // Step 2: Clean HTML content to remove unwanted attributes like data-path-to-node
       const cleanedKonten = cleanHtmlAttributes(konten);
+      
+      // Normalize new images array
+      const newImageUrls = Array.isArray(gambar) 
+        ? gambar.filter((url: string) => url && url.trim())
+        : [];
       
       const requestBody = {
         action: "updateProject",
@@ -250,7 +300,7 @@ export async function PUT(request: NextRequest) {
         judul: judul.trim(),
         penulis: penulis.trim(),
         konten: cleanedKonten.trim(),
-        gambar: gambar || [],
+        gambar: newImageUrls,
       };
 
       console.log("Updating project:", {
@@ -282,6 +332,28 @@ export async function PUT(request: NextRequest) {
       }
 
       if (response.ok && data.success) {
+        // Step 3: Delete old images that are no longer in the new images list
+        if (oldImageUrls.length > 0) {
+          // Find images that were removed (in old but not in new)
+          const removedImageUrls = oldImageUrls.filter(
+            (oldUrl: string) => !newImageUrls.includes(oldUrl)
+          );
+
+          if (removedImageUrls.length > 0) {
+            console.log(`Deleting ${removedImageUrls.length} removed images from R2:`, removedImageUrls);
+            const deleteResults = await deleteMultipleFromR2(removedImageUrls);
+            const successCount = deleteResults.filter((r) => r).length;
+            const failCount = removedImageUrls.length - successCount;
+            console.log(`Deleted ${successCount}/${removedImageUrls.length} removed images from R2 (${failCount} failed)`);
+            
+            if (failCount > 0) {
+              console.warn("Some removed images failed to delete. Check logs above for details.");
+            }
+          } else {
+            console.log("No images were removed, skipping deletion");
+          }
+        }
+
         return NextResponse.json(
           {
             success: true,

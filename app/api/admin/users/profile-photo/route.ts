@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { uploadToR2 } from "@/lib/r2";
+import { uploadToR2, deleteFromR2 } from "@/lib/r2";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to R2 in profile-photos folder
-    const { url } = await uploadToR2(file, "profile-photos");
-
-    // Update user profile photo in Apps Script
+    // Get old profile photo URL before uploading new one
     const apiUrl = process.env.DATABASE_API_URL;
     if (!apiUrl) {
       return NextResponse.json(
@@ -37,6 +34,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let oldProfilePhotoUrl: string | null = null;
+    try {
+      // Get current profile photo
+      const getPhotoResponse = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "getUserProfilePhoto",
+          username: username.trim(),
+        }),
+        redirect: "follow",
+      });
+
+      if (getPhotoResponse.ok) {
+        const getPhotoText = await getPhotoResponse.text();
+        try {
+          const getPhotoData = JSON.parse(getPhotoText);
+          if (getPhotoData.success !== false && getPhotoData.profilePhoto) {
+            oldProfilePhotoUrl = getPhotoData.profilePhoto;
+            console.log("Found old profile photo URL:", oldProfilePhotoUrl);
+          }
+        } catch (e) {
+          console.log("No old profile photo found or failed to parse response");
+        }
+      }
+    } catch (error) {
+      console.log("Error fetching old profile photo (continuing anyway):", error);
+    }
+
+    // Upload new photo to R2 in profile-photos folder
+    const { url } = await uploadToR2(file, "profile-photos");
+
+    // Update user profile photo in Apps Script
     try {
       const requestBody = {
         action: "updateUserProfilePhoto",
@@ -67,6 +99,22 @@ export async function POST(request: NextRequest) {
       }
 
       if (response.ok && data.success) {
+        // Delete old profile photo from R2 after successful update
+        if (oldProfilePhotoUrl && oldProfilePhotoUrl.trim() && oldProfilePhotoUrl !== url) {
+          try {
+            console.log("Deleting old profile photo from R2:", oldProfilePhotoUrl);
+            const deleteResult = await deleteFromR2(oldProfilePhotoUrl);
+            if (deleteResult) {
+              console.log("Successfully deleted old profile photo from R2");
+            } else {
+              console.warn("Failed to delete old profile photo from R2 (non-critical)");
+            }
+          } catch (deleteError) {
+            console.error("Error deleting old profile photo (non-critical):", deleteError);
+            // Don't fail the request if deletion fails
+          }
+        }
+
         return NextResponse.json(
           {
             success: true,
@@ -76,6 +124,14 @@ export async function POST(request: NextRequest) {
           { status: 200 }
         );
       } else {
+        // If update failed, try to delete the newly uploaded file to avoid orphaned files
+        try {
+          console.log("Update failed, cleaning up newly uploaded file:", url);
+          await deleteFromR2(url);
+        } catch (cleanupError) {
+          console.error("Error cleaning up uploaded file:", cleanupError);
+        }
+
         return NextResponse.json(
           { error: data.error || "Gagal mengupdate profile photo" },
           { status: response.status || 500 }
