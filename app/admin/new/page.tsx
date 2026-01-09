@@ -322,7 +322,7 @@ export default function NewProjectPage() {
 
             {/* Images Upload - Drag and Drop (Multiple) */}
             <div>
-              <p className="text-sm text-[#040404]/70 mb-2">Gambar Project (bisa multiple)</p>
+              <p className="text-sm text-[#040404]/70 mb-2">Gambar Project (only 1 image)</p>
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
