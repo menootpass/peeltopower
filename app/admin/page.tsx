@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { transformProject, type Project } from "@/lib/projects";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { getProxyImageUrl } from "@/lib/image-proxy";
 
 // Helper function to ensure no HTML tags are visible
 // This function aggressively removes ALL HTML tags and attributes
@@ -334,7 +335,7 @@ export default function AdminPage() {
       <AdminSidebar activeMenu="projects" />
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 bg-white min-h-screen">
+      <main className="flex-1 md:ml-64 bg-white min-h-screen">
         <div className="p-8">
           {/* Header with Search, Filter, and Add New Button */}
           <div className="flex flex-col gap-4 mb-8">
@@ -520,47 +521,64 @@ export default function AdminPage() {
                 {/* Right Side - Thumbnail Image */}
                 <div className="relative h-32 w-48 overflow-hidden rounded-xl flex-shrink-0 bg-[#F3F3F3]">
                   {displayImage ? (
-                    <img
-                      src={displayImage.trim()}
-                      alt={project.title || "Project image"}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        if (target && !target.dataset.failed) {
-                          const retryCount = parseInt(target.dataset.retryCount || '0');
-                          
-                          if (retryCount < 2) {
-                            // Retry loading image (might be SSL error that can be bypassed)
-                            target.dataset.retryCount = (retryCount + 1).toString();
-                            setTimeout(() => {
-                              const newSrc = target.src.split('?')[0] + `?retry=${Date.now()}`;
-                              target.src = newSrc;
-                            }, 1000 * (retryCount + 1));
-                          } else {
-                            target.dataset.failed = "true";
-                            if (!target.dataset.logged) {
-                              console.warn("Failed to load project image from R2 after retries (SSL error possible):", target.src);
-                              console.warn("Image URL is valid but browser blocked due to SSL certificate error.");
-                              console.warn("Solution: Use custom domain for R2 bucket or bypass SSL warning in browser.");
-                              target.dataset.logged = "true";
+                    <>
+                      <img
+                        src={getProxyImageUrl(displayImage)}
+                        alt={project.title || "Project image"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (target && !target.dataset.failed) {
+                            // If using proxy and it fails, try original URL as fallback
+                            const currentSrc = target.src;
+                            if (currentSrc.includes('/api/image-proxy')) {
+                              // Extract original URL from proxy URL
+                              try {
+                                const urlParams = new URLSearchParams(currentSrc.split('?')[1]);
+                                const originalUrl = urlParams.get('url');
+                                if (originalUrl) {
+                                  target.dataset.retryCount = "1";
+                                  target.src = originalUrl;
+                                  return;
+                                }
+                              } catch (e) {
+                                // If extraction fails, show placeholder
+                              }
                             }
-                            // Don't hide - let browser show broken image or user can see the URL
-                            // This way user knows there's an image but SSL is blocking it
+                            // Final fallback: show placeholder
+                            target.dataset.failed = "true";
+                            target.style.display = 'none';
+                            const placeholder = target.nextElementSibling as HTMLElement;
+                            if (placeholder) {
+                              placeholder.style.display = 'flex';
+                            }
                           }
-                        }
-                      }}
-                      onLoad={(e) => {
-                        const target = e.currentTarget as HTMLImageElement;
-                        if (target.dataset.failed) {
-                          delete target.dataset.failed;
-                        }
-                        if (target.dataset.retryCount) {
-                          delete target.dataset.retryCount;
-                        }
-                        console.log("Project image loaded successfully:", target.src);
-                      }}
-                    />
+                        }}
+                        onLoad={(e) => {
+                          const target = e.currentTarget as HTMLImageElement;
+                          if (target.dataset.failed) {
+                            delete target.dataset.failed;
+                          }
+                          if (target.dataset.retryCount) {
+                            delete target.dataset.retryCount;
+                          }
+                          // Hide placeholder if image loads successfully
+                          const placeholder = target.nextElementSibling as HTMLElement;
+                          if (placeholder) {
+                            placeholder.style.display = 'none';
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 w-full h-full flex items-center justify-center text-[#040404]/30 text-xs bg-[#F3F3F3]" style={{ display: 'none' }}>
+                        <div className="text-center px-2">
+                          <svg className="w-8 h-8 mx-auto mb-1 text-[#040404]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Image</span>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#040404]/30 text-sm">
                       No Image

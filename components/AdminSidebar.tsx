@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface AdminSidebarProps {
@@ -8,6 +9,7 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
   const router = useRouter();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -24,7 +26,45 @@ export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-[#040404] flex flex-col z-30">
+    <>
+      {/* Burger Menu Button - Mobile Only */}
+      <button
+        type="button"
+        onClick={() => setIsMenuOpen(!isMenuOpen)}
+        className="fixed top-4 left-4 z-50 flex h-11 w-11 flex-col items-center justify-center gap-[6px] rounded-full border border-[#16C47F]/30 bg-white text-[#040404] shadow-sm transition-colors hover:border-[#16C47F] md:hidden"
+        aria-label="Toggle navigation"
+      >
+        <span
+          className={`block h-[2px] w-6 bg-[#040404] transition-transform duration-200 ${
+            isMenuOpen ? "translate-y-[6px] rotate-45" : ""
+          }`}
+        />
+        <span
+          className={`block h-[2px] w-6 bg-[#040404] transition-opacity duration-200 ${
+            isMenuOpen ? "opacity-0" : "opacity-100"
+          }`}
+        />
+        <span
+          className={`block h-[2px] w-6 bg-[#040404] transition-transform duration-200 ${
+            isMenuOpen ? "-translate-y-[6px] -rotate-45" : ""
+          }`}
+        />
+      </button>
+
+      {/* Backdrop Overlay - Mobile Only */}
+      {isMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed left-0 top-0 bottom-0 w-64 bg-[#040404] flex flex-col z-30 transition-transform duration-300 ${
+          isMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
       {/* Top Section - Admin Panel Title */}
       <div className="px-6 py-8">
         <h2 className="text-xl font-semibold text-white text-center">
@@ -37,7 +77,10 @@ export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
         <ul className="space-y-2">
           <li>
             <button
-              onClick={() => router.push("/admin")}
+              onClick={() => {
+                router.push("/admin");
+                setIsMenuOpen(false);
+              }}
               className={`w-full text-left px-4 py-3 rounded-r-xl transition-colors ${
                 activeMenu === "projects"
                   ? "bg-white text-[#040404] font-medium"
@@ -49,7 +92,10 @@ export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
           </li>
           <li>
             <button
-              onClick={() => router.push("/admin/profile-setting")}
+              onClick={() => {
+                router.push("/admin/profile-setting");
+                setIsMenuOpen(false);
+              }}
               className={`w-full text-left px-4 py-3 rounded-r-xl transition-colors ${
                 activeMenu === "profile-setting"
                   ? "bg-white text-[#040404] font-medium"
@@ -61,7 +107,10 @@ export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
           </li>
           <li>
             <button
-              onClick={() => router.push("/admin/add-admin")}
+              onClick={() => {
+                router.push("/admin/add-admin");
+                setIsMenuOpen(false);
+              }}
               className={`w-full text-left px-4 py-3 rounded-r-xl transition-colors ${
                 activeMenu === "add-admin"
                   ? "bg-white text-[#040404] font-medium"
@@ -99,6 +148,7 @@ export function AdminSidebar({ activeMenu = "projects" }: AdminSidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 

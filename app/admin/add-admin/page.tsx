@@ -77,7 +77,7 @@ export default function AddAdminPage() {
     <div className="flex min-h-screen bg-white">
       <AdminSidebar activeMenu="add-admin" />
 
-      <main className="flex-1 ml-64 bg-white min-h-screen">
+      <main className="flex-1 md:ml-64 bg-white min-h-screen">
         <div className="p-8 max-w-2xl">
           <h1 className="text-3xl font-semibold text-[#040404] mb-8">
             Tambah Admin

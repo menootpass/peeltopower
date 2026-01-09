@@ -8,6 +8,7 @@ import { Navbar } from "@/components/Navbar";
 import { MoreArticles } from "@/components/MoreArticles";
 import { Footer } from "@/components/Footer";
 import { fetchProjectBySlug, type Project } from "@/lib/projects";
+import { getProxyImageUrl } from "@/lib/image-proxy";
 
 // Helper function to ensure no HTML tags are visible
 function cleanText(text: string): string {
@@ -206,42 +207,64 @@ export default function PortfolioDetailPage({
               {/* Main image (first image) */}
               <div className="relative aspect-video w-full overflow-hidden rounded-[32px] bg-[#F3F3F3]">
                 {(project.images && project.images.length > 0) || project.image ? (
-                  <img
-                    src={project.images && project.images.length > 0 ? project.images[0] : (project.image || "")}
-                    alt={project.title}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.currentTarget as HTMLImageElement;
-                      if (target && !target.dataset.failed) {
-                        const retryCount = parseInt(target.dataset.retryCount || '0');
-                        
-                        if (retryCount < 2) {
-                          target.dataset.retryCount = (retryCount + 1).toString();
-                          setTimeout(() => {
-                            const newSrc = target.src.split('?')[0] + `?retry=${Date.now()}`;
-                            target.src = newSrc;
-                          }, 1000 * (retryCount + 1));
-                        } else {
-                          target.dataset.failed = "true";
-                          if (!target.dataset.logged) {
-                            console.warn("Failed to load main image from R2 (SSL error possible):", target.src);
-                            target.dataset.logged = "true";
+                  <>
+                    <img
+                      src={getProxyImageUrl(project.images && project.images.length > 0 ? project.images[0] : (project.image || ""))}
+                      alt={project.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target && !target.dataset.failed) {
+                          // If using proxy and it fails, try original URL as fallback
+                          const currentSrc = target.src;
+                          if (currentSrc.includes('/api/image-proxy')) {
+                            // Extract original URL from proxy URL
+                            try {
+                              const urlParams = new URLSearchParams(currentSrc.split('?')[1]);
+                              const originalUrl = urlParams.get('url');
+                              if (originalUrl) {
+                                target.dataset.retryCount = "1";
+                                target.src = originalUrl;
+                                return;
+                              }
+                            } catch (e) {
+                              // If extraction fails, show placeholder
+                            }
                           }
-                          // Keep image visible - don't hide
+                          // Final fallback: show placeholder
+                          target.dataset.failed = "true";
+                          target.style.display = 'none';
+                          const placeholder = target.nextElementSibling as HTMLElement;
+                          if (placeholder) {
+                            placeholder.style.display = 'flex';
+                          }
                         }
-                      }
-                    }}
-                    onLoad={(e) => {
-                      const target = e.currentTarget as HTMLImageElement;
-                      if (target.dataset.failed) {
-                        delete target.dataset.failed;
-                      }
-                      if (target.dataset.retryCount) {
-                        delete target.dataset.retryCount;
-                      }
-                    }}
-                  />
+                      }}
+                      onLoad={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (target.dataset.failed) {
+                          delete target.dataset.failed;
+                        }
+                        if (target.dataset.retryCount) {
+                          delete target.dataset.retryCount;
+                        }
+                        // Hide placeholder if image loads successfully
+                        const placeholder = target.nextElementSibling as HTMLElement;
+                        if (placeholder) {
+                          placeholder.style.display = 'none';
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center text-[#040404]/30 text-base bg-[#F3F3F3]" style={{ display: 'none' }}>
+                      <div className="text-center">
+                        <svg className="w-16 h-16 mx-auto mb-2 text-[#040404]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span>Image tidak dapat dimuat</span>
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-[#040404]/30 text-lg">
                     No Image Available
@@ -255,21 +278,34 @@ export default function PortfolioDetailPage({
                   {project.images.slice(1).map((imgUrl, index) => (
                     <div key={index} className="relative aspect-video w-full overflow-hidden rounded-[32px] bg-[#F3F3F3]">
                       <img
-                        src={imgUrl || "/img/activities1.jpg"}
+                        src={getProxyImageUrl(imgUrl) || "/img/activities1.jpg"}
                         alt={`${project.title} - Image ${index + 2}`}
                         className="w-full h-full object-cover"
                         loading="lazy"
-                        crossOrigin="anonymous"
-                        referrerPolicy="no-referrer"
                         onError={(e) => {
                           const target = e.currentTarget as HTMLImageElement;
                           if (target && !target.dataset.failed) {
-                            target.dataset.failed = "true";
-                            if (!target.dataset.logged) {
-                              console.warn("Failed to load image, hiding:", target.src);
-                              target.dataset.logged = "true";
+                            // If using proxy and it fails, try original URL as fallback
+                            const currentSrc = target.src;
+                            if (currentSrc.includes('/api/image-proxy')) {
+                              try {
+                                const urlParams = new URLSearchParams(currentSrc.split('?')[1]);
+                                const originalUrl = urlParams.get('url');
+                                if (originalUrl) {
+                                  target.dataset.retryCount = "1";
+                                  target.src = originalUrl;
+                                  return;
+                                }
+                              } catch (e) {
+                                // If extraction fails, show placeholder
+                              }
                             }
+                            target.dataset.failed = "true";
                             target.style.display = 'none';
+                            const placeholder = target.nextElementSibling as HTMLElement;
+                            if (placeholder) {
+                              placeholder.style.display = 'flex';
+                            }
                           }
                         }}
                         onLoad={(e) => {
@@ -278,8 +314,20 @@ export default function PortfolioDetailPage({
                             delete target.dataset.failed;
                             target.style.display = '';
                           }
+                          const placeholder = target.nextElementSibling as HTMLElement;
+                          if (placeholder) {
+                            placeholder.style.display = 'none';
+                          }
                         }}
                       />
+                      <div className="absolute inset-0 w-full h-full flex items-center justify-center text-[#040404]/30 text-sm bg-[#F3F3F3]" style={{ display: 'none' }}>
+                        <div className="text-center px-2">
+                          <svg className="w-12 h-12 mx-auto mb-1 text-[#040404]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>Image</span>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -289,42 +337,61 @@ export default function PortfolioDetailPage({
             // Fallback to single image
             <div className="relative aspect-video w-full overflow-hidden rounded-[32px] bg-[#F3F3F3]">
               {project.image ? (
-                <img
-                  src={project.image}
-                  alt={project.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    if (target && !target.dataset.failed) {
-                      const retryCount = parseInt(target.dataset.retryCount || '0');
-                      
-                      if (retryCount < 2) {
-                        target.dataset.retryCount = (retryCount + 1).toString();
-                        setTimeout(() => {
-                          const newSrc = target.src.split('?')[0] + `?retry=${Date.now()}`;
-                          target.src = newSrc;
-                        }, 1000 * (retryCount + 1));
-                      } else {
-                        target.dataset.failed = "true";
-                        if (!target.dataset.logged) {
-                          console.warn("Failed to load image from R2 (SSL error possible):", target.src);
-                          target.dataset.logged = "true";
+                <>
+                  <img
+                    src={getProxyImageUrl(project.image)}
+                    alt={project.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (target && !target.dataset.failed) {
+                        // If using proxy and it fails, try original URL as fallback
+                        const currentSrc = target.src;
+                        if (currentSrc.includes('/api/image-proxy')) {
+                          try {
+                            const urlParams = new URLSearchParams(currentSrc.split('?')[1]);
+                            const originalUrl = urlParams.get('url');
+                            if (originalUrl) {
+                              target.dataset.retryCount = "1";
+                              target.src = originalUrl;
+                              return;
+                            }
+                          } catch (e) {
+                            // If extraction fails, show placeholder
+                          }
                         }
-                        // Keep image visible - don't hide
+                        target.dataset.failed = "true";
+                        target.style.display = 'none';
+                        const placeholder = target.nextElementSibling as HTMLElement;
+                        if (placeholder) {
+                          placeholder.style.display = 'flex';
+                        }
                       }
-                    }
-                  }}
-                  onLoad={(e) => {
-                    const target = e.currentTarget as HTMLImageElement;
-                    if (target.dataset.failed) {
-                      delete target.dataset.failed;
-                    }
-                    if (target.dataset.retryCount) {
-                      delete target.dataset.retryCount;
-                    }
-                  }}
-                />
+                    }}
+                    onLoad={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (target.dataset.failed) {
+                        delete target.dataset.failed;
+                      }
+                      if (target.dataset.retryCount) {
+                        delete target.dataset.retryCount;
+                      }
+                      const placeholder = target.nextElementSibling as HTMLElement;
+                      if (placeholder) {
+                        placeholder.style.display = 'none';
+                      }
+                    }}
+                  />
+                  <div className="absolute inset-0 w-full h-full flex items-center justify-center text-[#040404]/30 text-base bg-[#F3F3F3]" style={{ display: 'none' }}>
+                    <div className="text-center">
+                      <svg className="w-16 h-16 mx-auto mb-2 text-[#040404]/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Image tidak dapat dimuat</span>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-[#040404]/30 text-lg">
                   No Image Available

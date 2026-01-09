@@ -233,7 +233,7 @@ export default function NewProjectPage() {
       <AdminSidebar activeMenu="projects" />
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 bg-white min-h-screen">
+      <main className="flex-1 md:ml-64 bg-white min-h-screen">
         <div className="p-12 max-w-4xl">
           {message && (
             <div
@@ -407,7 +407,7 @@ export default function NewProjectPage() {
                       <div>
                         <label className="cursor-pointer">
                           <span className="text-[#040404] font-medium">
-                            Drag and drop gambar, atau klik untuk memilih (bisa multiple)
+                            Drag and drop gambar, atau klik untuk memilih (only 1 image)
                           </span>
                           <input
                             type="file"

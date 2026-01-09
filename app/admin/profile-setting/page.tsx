@@ -257,7 +257,7 @@ export default function ProfileSettingPage() {
     return (
       <div className="flex min-h-screen bg-white">
         <AdminSidebar activeMenu="profile-setting" />
-        <main className="flex-1 ml-64 bg-white min-h-screen flex items-center justify-center">
+        <main className="flex-1 md:ml-64 bg-white min-h-screen flex items-center justify-center">
           <p className="text-[#040404]/70">Loading profile...</p>
         </main>
       </div>
@@ -270,7 +270,7 @@ export default function ProfileSettingPage() {
       <AdminSidebar activeMenu="profile-setting" />
 
       {/* Main Content */}
-      <main className="flex-1 ml-64 bg-white min-h-screen">
+      <main className="flex-1 md:ml-64 bg-white min-h-screen">
         <div className="p-8 max-w-4xl">
           <h1 className="text-3xl font-semibold text-[#040404] mb-8">
             Profile Setting
