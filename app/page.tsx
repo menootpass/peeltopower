@@ -441,7 +441,7 @@ export default function Home() {
                   </h3>
                 </div>
                 <p className="text-sm text-[#040404]/70 sm:text-base">
-                  as a Engineer
+                  as a Captain
                 </p>
               </div>
             </div>
@@ -485,7 +485,7 @@ export default function Home() {
                   </h3>
                 </div>
                 <p className="text-sm text-[#040404]/70 sm:text-base">
-                  as a Captain
+                  as a Engineer
                 </p>
               </div>
             </div>
